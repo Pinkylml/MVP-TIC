@@ -46,8 +46,9 @@ class SurvivalEngine:
         # 1. Align features
         df = self.align_features(input_data)
         
-        # 2. Create DMatrix
-        dmatrix = xgb.DMatrix(df)
+        # 2. Create DMatrix with explicit feature names
+        # Production Fix: Clearly tell XGBoost what the feature names are
+        dmatrix = xgb.DMatrix(data=df, feature_names=list(df.columns))
         
         # 3. Get prediction - USE output_margin=True to get real μ (log-time)
         # Without output_margin, XGBoost returns transformed time (not log)
