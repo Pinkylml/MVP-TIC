@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predictor de Inserción Laboral - EPN</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --epn-blue: #003DA5;
+            --epn-blue-light: #0056D6;
+            --epn-blue-dark: #002D7A;
+            --fis-accent: #00A8E8;
+        }
+
+        .epn-gradient {
+            background: linear-gradient(135deg, var(--epn-blue) 0%, var(--epn-blue-light) 100%);
+        }
+
+        .fis-accent-bg {
+            background-color: var(--fis-accent);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50">
+    <!-- Header EPN -->
+    <div class="epn-gradient text-white p-6 shadow-lg">
+        <div class="max-w-6xl mx-auto">
+            <h1 class="text-3xl font-bold mb-2">Predictor de Inserción Laboral</h1>
+            <p class="text-blue-100">Escuela Politécnica Nacional - Facultad de Ingeniería de Sistemas</p>
+            <p class="text-sm text-blue-200 mt-1">Modelo XGBoost AFT - Análisis de Supervivencia</p>
+        </div>
+    </div>
+
+    <div class="max-w-6xl mx-auto p-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Formulario de Entrada -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold mb-4" style="color: var(--epn-blue)">Datos del Graduado</h2>
+
+                <!-- Soft Skills -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold mb-3 text-gray-700">Habilidades Blandas (Escala 1-5)</h3>
+                    <div id="inputs" class="space-y-3"></div>
+                </div>
+
+                <!-- Demografía -->
+                <div class="mb-6">
+                    <h3 class="text-lg font-semibold mb-3 text-gray-700">Información Demográfica</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Edad</label>
+                            <input type="number" id="Edad" value="25" min="18" max="65"
+                                class="border border-gray-300 p-2 w-full rounded focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Género</label>
+                            <select id="Genero_bin"
+                                class="border border-gray-300 p-2 w-full rounded focus:ring-2 focus:ring-blue-500">
+                                <option value="0">Femenino</option>
+                                <option value="1" selected>Masculino</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-600 mb-1">Carrera</label>
+                            <select id="Carrera"
+                                class="border border-gray-300 p-2 w-full rounded focus:ring-2 focus:ring-blue-500">
+                                <option value="SOFTWARE">SOFTWARE</option>
+                                <option value="COMPUTACIÓN">COMPUTACIÓN</option>
+                                <option value="DESARROLLO DE SOFTWARE">DESARROLLO DE SOFTWARE</option>
+                                <option value="TECNOLOGÍAS DE LA INFORMACIÓN">TECNOLOGÍAS DE LA INFORMACIÓN</option>
+                                <option value="REDES Y TELECOMUNICACIONES">REDES Y TELECOMUNICACIONES</option>
+                                <option value="TELECOMUNICACIONES">TELECOMUNICACIONES</option>
+                                <option value="ELECTRÓNICA Y AUTOMATIZACIÓN">ELECTRÓNICA Y AUTOMATIZACIÓN</option>
+                                <option value="ELECTRICIDAD">ELECTRICIDAD</option>
+                                <option value="ELECTROMECÁNICA">ELECTROMECÁNICA</option>
+                                <option value="MECÁNICA">MECÁNICA</option>
+                                <option value="INGENIERÍA CIVIL">INGENIERÍA CIVIL</option>
+                                <option value="INGENIERÍA QUÍMICA">INGENIERÍA QUÍMICA</option>
+                                <option value="INGENIERÍA AMBIENTAL">INGENIERÍA AMBIENTAL</option>
+                                <option value="PETRÓLEOS">PETRÓLEOS</option>
+                                <option value="GEOLOGÍA">GEOLOGÍA</option>
+                                <option value="AGUA Y SANEAMIENTO AMBIENTAL">AGUA Y SANEAMIENTO AMBIENTAL</option>
+                                <option value="AGROINDUSTRIA">AGROINDUSTRIA</option>
+                                <option value="ADMINISTRACIÓN DE EMPRESAS">ADMINISTRACIÓN DE EMPRESAS</option>
+                                <option value="INGENIERIA EMPRESARIAL">INGENIERIA EMPRESARIAL</option>
+                                <option value="INGENIERÍA DE LA PRODUCCIÓN">INGENIERÍA DE LA PRODUCCIÓN</option>
+                                <option value="ECONOMÍA">ECONOMÍA</option>
+                                <option value="INGENIERIA EN CIENCIAS ECONOMICAS Y FINANCIERAS">ING. CIENCIAS ECONÓMICAS
+                                    Y FINANCIERAS</option>
+                                <option value="FÍSICA">FÍSICA</option>
+                                <option value="MATEMÁTICA">MATEMÁTICA</option>
+                                <option value="MATEMÁTICA APLICADA">MATEMÁTICA APLICADA</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Exploración SHAP (Top Features) -->
+                <details class="mb-6 border border-blue-200 rounded-lg">
+                    <summary
+                        class="cursor-pointer font-semibold p-3 bg-blue-50 text-blue-900 hover:bg-blue-100 rounded-lg">
+                        🔍 Exploración SHAP - Top Habilidades Técnicas
+                    </summary>
+                    <div class="p-4 space-y-3 bg-white">
+                        <p class="text-xs text-gray-600 mb-3">
+                            Activa las habilidades técnicas para ver cómo impactan la predicción (según SHAP Top 20)
+                        </p>
+
+                        <!-- Top Technical Skills (binarias) -->
+                        <div class="grid grid-cols-1 gap-2">
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" id="react, revit" class="tech-skill">
+                                <span class="text-sm">React / Revit</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" id="estructura de datos, estructuras" class="tech-skill">
+                                <span class="text-sm">Estructura de Datos / Estructuras</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" id="simulación, simulación de procesos" class="tech-skill">
+                                <span class="text-sm">Simulación / Simulación de Procesos</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" id="telefonía ip, voz sobre ip" class="tech-skill">
+                                <span class="text-sm">Telefonía IP / VoIP</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" id="finanzas, mercados financieros" class="tech-skill">
+                                <span class="text-sm">Finanzas / Mercados Financieros</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" id="arquitectura de computadoras" class="tech-skill">
+                                <span class="text-sm">Arquitectura de Computadoras</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" id="optimización, optimización de procesos" class="tech-skill">
+                                <span class="text-sm">Optimización / Optimización de Procesos</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox"
+                                    id="análisis de datos, análisis de materiales, análisis de sistemas ..."
+                                    class="tech-skill">
+                                <span class="text-sm">Análisis de Datos / Materiales / Sistemas</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" id="etl, latex, lte" class="tech-skill">
+                                <span class="text-sm">ETL / LaTeX / LTE</span>
+                            </label>
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" id="logística, supply chain" class="tech-skill">
+                                <span class="text-sm">Logística / Supply Chain</span>
+                            </label>
+                        </div>
+
+                        <div class="mt-3 p-2 bg-yellow-50 border-l-4 border-yellow-400 text-xs text-yellow-800">
+                            <strong>💡 Tip:</strong> Activa/desactiva habilidades y observa cómo cambia la predicción.
+                            SHAP muestra el impacto marginal de cada feature.
+                        </div>
+                    </div>
+                </details>
+
+                <button onclick="predict()"
+                    class="epn-gradient text-white px-6 py-3 rounded-lg hover:opacity-90 w-full font-semibold text-lg shadow-md transition-all">
+                    🔍 Predecir Tiempo de Inserción
+                </button>
+            </div>
+
+            <!-- Resultados -->
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold mb-4" style="color: var(--epn-blue)">Resultados de Predicción</h2>
+
+                <!-- Métricas principales -->
+                <div id="metricsCards" class="grid grid-cols-2 gap-4 mb-6 hidden">
+                    <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-600">
+                        <p class="text-sm text-gray-600 mb-1">Tiempo Mediano (p50)</p>
+                        <p id="p50_display" class="text-2xl font-bold text-blue-700">-- meses</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg border-l-4 border-green-600">
+                        <p class="text-sm text-gray-600 mb-1">75% Insertados en</p>
+                        <p id="p75_display" class="text-2xl font-bold text-green-700">-- meses</p>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-600 col-span-2">
+                        <p class="text-sm text-gray-600 mb-1">90% Insertados en</p>
+                        <p id="p90_display" class="text-2xl font-bold text-purple-700">-- meses</p>
+                    </div>
+                </div>
+
+                <!-- Interpretación -->
+                <div id="interpretation" class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded hidden">
+                    <h3 class="font-semibold text-yellow-900 mb-2">📊 Interpretación</h3>
+                    <p id="interpretationText" class="text-sm text-yellow-800"></p>
+                </div>
+
+                <!-- Gráfica -->
+                <div class="mb-4">
+                    <h3 class="font-semibold text-gray-700 mb-2">Curva de Supervivencia S(t)</h3>
+                    <canvas id="survivalChart"></canvas>
+                </div>
+
+                <!-- Detalles técnicos colapsables -->
+                <details class="text-sm text-gray-600">
+                    <summary class="cursor-pointer font-semibold mb-2">Detalles Técnicos</summary>
+                    <div id="technicalDetails" class="bg-gray-50 p-3 rounded mt-2"></div>
+                </details>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="mt-12 py-6 bg-gray-100 text-center text-sm text-gray-600">
+        <p>© 2026 Escuela Politécnica Nacional | Modelo AFT para Predicción de Inserción Laboral</p>
+    </div>
+
+    <script>
+        // Populate S1-S7
+        const skills = [
+            'S1: Comunicación Española',
+            'S2: Compromiso Ético',
+            'S3: Trabajo en Equipo / Liderazgo',
+            'S4: Responsabilidad Social',
+            'S5: Gestión de Proyectos',
+            'S6: Aprendizaje Digital',
+            'S7: Inglés'
+        ];
+
+        const inputDiv = document.getElementById('inputs');
+        for (let i = 1; i <= 7; i++) {
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <label class="block text-sm font-medium text-gray-600 mb-1">${skills[i - 1]}</label>
+                <input type="number" id="S${i}" value="3" min="1" max="5" step="0.5" 
+                       class="border border-gray-300 p-2 w-full rounded focus:ring-2 focus:ring-blue-500">
+            `;
+            inputDiv.appendChild(div);
+        }
+
+        async function predict() {
+            // Collect technical skills from checkboxes
+            const technicalSkills = {};
+            document.querySelectorAll('.tech-skill').forEach(checkbox => {
+                technicalSkills[checkbox.id] = checkbox.checked ? 1 : 0;
+            });
+
+            const data = {
+                S1: parseFloat(document.getElementById('S1').value),
+                S2: parseFloat(document.getElementById('S2').value),
+                S3: parseFloat(document.getElementById('S3').value),
+                S4: parseFloat(document.getElementById('S4').value),
+                S5: parseFloat(document.getElementById('S5').value),
+                S6: parseFloat(document.getElementById('S6').value),
+                S7: parseFloat(document.getElementById('S7').value),
+                Edad: parseInt(document.getElementById('Edad').value),
+                Genero_bin: parseInt(document.getElementById('Genero_bin').value),
+                Carrera: document.getElementById('Carrera').value,
+                ...technicalSkills  // Spread technical skills into data object
+            };
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    const error = await response.text();
+                    alert("Error en predicción: " + error);
+                    return;
+                }
+
+                const result = await response.json();
+                displayResults(result);
+            } catch (err) {
+                alert("Error: " + err);
+            }
+        }
+
+        function displayResults(result) {
+            // Show cards
+            document.getElementById('metricsCards').classList.remove('hidden');
+            document.getElementById('interpretation').classList.remove('hidden');
+
+            // Update metrics
+            const p50 = result.percentiles.p50;
+            const p75 = result.percentiles.p75;
+            const p90 = result.percentiles.p90;
+
+            document.getElementById('p50_display').textContent = p50.toFixed(1) + ' meses';
+            document.getElementById('p75_display').textContent = p75.toFixed(1) + ' meses';
+            document.getElementById('p90_display').textContent = p90.toFixed(1) + ' meses';
+
+            // Interpretation
+            let interpretation = `El modelo predice que el 50% de graduados con este perfil consiguen empleo en <strong>${p50.toFixed(1)} meses</strong>. `;
+
+            if (p50 < 6) {
+                interpretation += `✅ Este es un <strong>tiempo excelente</strong> de inserción laboral (menor a 6 meses).`;
+            } else if (p50 < 12) {
+                interpretation += `✓ Este es un <strong>tiempo bueno</strong> de inserción laboral (6-12 meses).`;
+            } else {
+                interpretation += `⚠️ Este tiempo de inserción es <strong>mayor al promedio esperado</strong> (>12 meses).`;
+            }
+
+            interpretation += ` Para el ${p90.toFixed(0)}º percentil, se espera que el 90% esté empleado en ${p90.toFixed(1)} meses.`;
+
+            document.getElementById('interpretationText').innerHTML = interpretation;
+
+            // Technical details
+            document.getElementById('technicalDetails').innerHTML = `
+                <p><strong>μ (Margen AFT):</strong> ${result.mu.toFixed(4)}</p>
+                <p><strong>Distribución:</strong> Log-Normal</p>
+                <p><strong>σ (Scale):</strong> 2.8551</p>
+            `;
+
+            // Chart
+            renderChart(result.survival_curve);
+        }
+
+        let chart = null;
+        function renderChart(curveData) {
+            const ctx = document.getElementById('survivalChart').getContext('2d');
+            const labels = curveData.map(d => d.t);
+            const values = curveData.map(d => d.S_t);
+
+            if (chart) chart.destroy();
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Probabilidad de NO haber obtenido empleo',
+                        data: values,
+                        borderColor: '#003DA5',
+                        backgroundColor: 'rgba(0, 61, 165, 0.1)',
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1.0,
+                            title: { display: true, text: 'S(t) - Probabilidad de Supervivencia' }
+                        },
+                        x: {
+                            title: { display: true, text: 'Tiempo (meses)' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: true }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>
