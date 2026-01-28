@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Dict, List
+from typing import List, Dict, Optional
 
 class PredictionInput(BaseModel):
     # Soft Skills (1-5 Likert Scale)
