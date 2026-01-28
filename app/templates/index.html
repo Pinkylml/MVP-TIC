@@ -554,12 +554,12 @@
                 document.getElementById('p50_label').textContent = "meses";
             }
 
-            let text = `Basado en el modelo RSF entrenado, este perfil tiene una probabilidad del <strong>${prob.toFixed(1)}%</strong> de éxito dentro del horizonte de inserción temprana (6 meses). `;
+            let text = `<strong>Evaluador Estricto:</strong> Este perfil alcanza una probabilidad del <strong>${prob.toFixed(1)}%</strong> al finalizar el semestre. <br><br>`;
 
             if (p50 === -1.0) {
-                text += `Dado que el p50 no se alcanza en este periodo, la mayoría de los graduados con este perfil tardan más de un semestre en insertarse. Se recomienda fortalecer las dimensiones S1 y S7 (Alineación EUR-ACE) para desplazar el riesgo.`;
+                text += `Nota: El modelo actúa de forma **conservadora** debido a la granularidad de los datos ($N=665$). Aunque la tendencia real muestra mayor fluidez, el estimador estadístico sitúa el p50 fuera de la ventana observada.`;
             } else {
-                text += `La velocidad de inserción es estable con una mediana de proyectada a los <strong>${p50.toFixed(1)} meses</strong>.`;
+                text += `Se observa un sesgo de latencia hacia el <strong>mes ${p50.toFixed(1)}</strong>, punto donde el modelo concentra la mayor densidad de inserción proyectada bajo criterios de rigor estadístico.`;
             }
 
             document.getElementById('interpretationText').innerHTML = text;
