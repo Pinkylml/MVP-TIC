@@ -1,94 +1,118 @@
 import numpy as np
 import pandas as pd
-import xgboost as xgb
-from scipy.stats import norm
+import joblib
 from .loader import ModelLoader
 
 class SurvivalEngine:
     def __init__(self):
         self.loader = ModelLoader
         # Metadata
-        meta = self.loader.get_metadata()
-        self.scale = meta["scale"]
-        self.dist = meta["dist"]
+        self.meta = self.loader.get_metadata()
+        self.feature_names = self.meta.get("datos", {}).get("feature_names", [])
         
-    def _get_booster(self):
-        return self.loader.get_booster()
+    def _get_model(self):
+        return self.loader.get_model()
+        
+    def _get_scaler(self):
+        return self.loader.get_scaler()
+        
+    def _get_career_mapping(self):
+        return self.loader.get_career_mapping()
 
-    def align_features(self, input_data: dict) -> pd.DataFrame:
+    def preprocess(self, input_data: dict) -> np.ndarray:
         """
-        Align input dictionary to model's feature names.
-        Missing features are filled with 0.
+        Preprocess input dictionary for RSF model:
+        1. Encode career
+        2. Interaction term
+        3. Align features
+        4. Apply Scaler
         """
-        booster = self._get_booster()
-        model_features = booster.feature_names
+        # Create a deep copy to avoid modifying original
+        data = input_data.copy()
         
-        # Create DataFrame from input
-        df = pd.DataFrame([input_data])
+        # 1. Career Encoding
+        mapping = self._get_career_mapping()
+        career_name = data.get("Carrera", "")
+        # The mapping is Name -> ID. Let's find matches.
+        # Normalize career name if needed, but let's assume it matches the keys in the JSON
+        career_id = mapping.get(career_name, 0) # Default to 0 if not found
+        data["carrera_encoded"] = float(career_id)
         
-        # Reindex to match model features, filling missing with 0
-        df_aligned = df.reindex(columns=model_features, fill_value=0)
+        # 2. Interaction Term
+        gender = float(data.get("Genero_bin", 0))
+        data["genero_x_carrera"] = gender * data["carrera_encoded"]
         
-        # Ensure correct order
-        df_aligned = df_aligned[model_features]
+        # 3. Align Features (80 features expected by RSF)
+        ser = pd.Series(0.0, index=self.feature_names)
         
-        return df_aligned
+        # Base mapping
+        key_map = {
+            "S1": "S1_Comunicacion_Esp",
+            "S2": "S2_Compromiso_Etico",
+            "S3": "S3_Trabajo_Equipo_Liderazgo",
+            "S4": "S4_Resp_Social",
+            "S5": "S5_Gestion_Proyectos",
+            "S6": "S6_Aprendizaje_Digital",
+            "S7": "S7_Ingles",
+            "Edad": "Edad",
+            "Genero_bin": "Genero_bin",
+            "carrera_encoded": "carrera_encoded",
+            "genero_x_carrera": "genero_x_carrera"
+        }
+        
+        for input_key, feature_name in key_map.items():
+            if input_key in data:
+                ser[feature_name] = float(data[input_key])
+        
+        # 4. Smart Technical Skill Mapping (Keyword search in groups)
+        # The frontend sends a dict of { checkbox_id: 0/1 }
+        user_skills = data.get("technical_skills", {})
+        selected_skills = [k.lower() for k, v in user_skills.items() if v > 0]
+        
+        if selected_skills:
+            for feature_name in self.feature_names:
+                # If feature_name is one of the 70 NLP groups (contains commas or keywords)
+                for skill in selected_skills:
+                    # Check if the user's selected skill (e.g. 'react') is in the group name ('react, revit')
+                    if skill in feature_name.lower():
+                        ser[feature_name] = 1.0
+        
+        # 5. Scale
+        X_scaled = self._get_scaler().transform(ser.values.reshape(1, -1))
+        return X_scaled
 
     def predict(self, input_data: dict) -> dict:
         """
-        Predict survival curve from input dictionary.
-        
-        Returns dict with:
-        - mu: predicted log-time (μ)
-        - percentiles: dict mapping percentile names to time values
-        - survival_curve: array of (time, S(t)) pairs
+        Predict survival curve using RSF.
         """
-        # 1. Align features
-        df = self.align_features(input_data)
+        X_scaled = self.preprocess(input_data)
+        model = self._get_model()
+        surv_funcs = model.predict_survival_function(X_scaled)
+        surv_func = surv_funcs[0]
+        # 3. Evaluate at time points (Higher resolution for smoother curves)
+        times = np.linspace(0.0, 6.0, 100)
+        S_t = surv_func(times)
         
-        # 2. Create DMatrix with explicit feature names
-        # Production Fix: Clearly tell XGBoost what the feature names are
-        dmatrix = xgb.DMatrix(data=df, feature_names=list(df.columns))
-        
-        # 3. Get prediction - USE output_margin=True to get real μ (log-time)
-        # Without output_margin, XGBoost returns transformed time (not log)
-        mu = self._get_booster().predict(dmatrix, output_margin=True)[0]
-        
-        print(f"[DEBUG] μ (margin/log-time): {mu}")
-        
-        # 4. Calculate survival curve S(t)
-        # Based on AFT formula from evaluation notebook (line 482):
-        # S(t) = 1 - Φ((log(t) - μ) / σ)
-        times = np.linspace(0.1, 60, 120)  # 0.1 to 60 months
-        z = (np.log(times) - mu) / self.scale
-        
-        if self.dist == "normal":
-            F = norm.cdf(z)
-        else:
-            F = norm.cdf(z)  # fallback to normal
-        
-        S_t = 1.0 - F
-        S_t = np.clip(S_t, 1e-9, 1.0)
-        
-        # 5. Calculate percentiles from survival curve
-        # For percentile p, find time t where S(t) = 1-p
+        # Percentiles (Precise search)
         percentiles = {}
-        for p_name, p_value in [("p25", 0.25), ("p50", 0.50), ("p75", 0.75), ("p90", 0.90)]:
+        for p_name, p_value in [("p25", 0.25), ("p50", 0.50), ("p75", 0.75)]:
             target_survival = 1.0 - p_value
-            # Find closest time where S(t) <= target
+            # Find the first time point where survival drops below threshold
             idx = np.where(S_t <= target_survival)[0]
             if len(idx) > 0:
                 percentiles[p_name] = float(times[idx[0]])
             else:
-                percentiles[p_name] = float(times[-1])  # If never reaches, use max time
+                percentiles[p_name] = -1.0 # Not reached within 6 months
         
-        # 6. Format survival curve for output
-        survival_curve_output = [{"t": float(t), "S_t": float(s)} for t, s in zip(times, S_t)]
+        # Employment Probability @ 6 months (Complementary probability)
+        # 1 - S(6) = Prob(T <= 6)
+        prob_6m = 1.0 - float(S_t[-1])
         
-        results = {
-            "mu": float(mu),
+        return {
+            "mu": 0.0,
             "percentiles": percentiles,
-            "survival_curve": survival_curve_output
+            "survival_curve": [{"t": float(t), "S_t": float(s)} for t, s in zip(times, S_t)],
+            "prob_6m": prob_6m,
+            "algo": "Random Survival Forest (RSF)",
+            "citations": "Cando Santos (2026), Ishwaran et al. (2008)"
         }
-        
-        return results

@@ -8,9 +8,9 @@ import uvicorn
 import os
 
 app = FastAPI(
-    title="XGB-AFT Survival Prediction MVP",
-    description="API for predicting graduate employability survival time using XGBoost AFT.",
-    version="1.0.0"
+    title="RSF Survival Prediction MVP",
+    description="API for predicting graduate employability survival time using Random Survival Forest.",
+    version="2.0.0"
 )
 
 # CORS
@@ -34,8 +34,8 @@ async def read_root(request: Request):
 @app.post("/predict", response_model=SurvivalOutput)
 async def predict_survival(input_data: PredictionInput):
     try:
-        # Convert Pydantic model to flat dict expected by XGBoost
-        model_input = input_data.to_model_dict()
+        # Convert Pydantic model to dictionary for the engine
+        model_input = input_data.to_engine_dict()
         
         # Run prediction
         results = engine.predict(model_input)

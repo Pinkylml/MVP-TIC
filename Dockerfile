@@ -8,9 +8,11 @@ ENV PYTHONUNBUFFERED=1
 # Set work directory
 WORKDIR /app
 
-# Install system dependencies (needed for XGBoost)
+# Install system dependencies (needed for scikit-survival and scikit-learn)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgomp1 \
+    build-essential \
+    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install python dependencies

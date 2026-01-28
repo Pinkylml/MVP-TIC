@@ -20,9 +20,14 @@ Esta carpeta contiene los reportes técnicos generados durante la fase de implem
 - Análisis por rangos (0-1m, <3m, <4m).
 - Identificación de **Redes y Telecomunicaciones** como la opción más rápida.
 
+### 4. [Informe Final de Despliegue](INFORME_FINAL_DEPLOY.md)
+**Archivo origen**: `INFORME_FINAL_DEPLOY.md`
+- URL de Producción: **https://mvp-tic.onrender.com**
+- Detalles de la plataforma (Render Free Tier) y notas sobre Cold Starts.
+
 ---
 
 ## 🚀 Deployment
 
 Los reportes validan el modelo para su despliegue final.
-Próximos pasos: Dockerización y puesta en producción.
+Próximos pasos: Disfrutar del MVP en producción.
